@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
 
-    // Tambahkan plugin Google Services untuk Firebase di sini
+    // Plugin Google Services wajib untuk Firebase
     id("com.google.gms.google-services")
 }
 
@@ -13,7 +13,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.albrk.shoescare"
+        applicationId = "com.albrk.shoescare.pelanggan"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
@@ -39,26 +39,42 @@ android {
 }
 
 dependencies {
-    // FIREBASE
-    // Menggunakan Firebase BoM untuk manajemen versi otomatis
+    // =======================================================
+    // FIREBASE STACK (KUNCI UTAMA)
+    // =======================================================
+    // Menggunakan Firebase BoM untuk manajemen versi otomatis yang stabil
     implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
     implementation("com.google.firebase:firebase-analytics")
 
-    // UPDATE DI SINI: Gunakan library Realtime Database (Gantikan Firestore)
+    // Database untuk simpan data teks (Transaksi & Profil)
     implementation("com.google.firebase:firebase-database")
 
-    // ANDROIDX & COMPOSE
+    // Auth untuk Login, Daftar, Update Email & Sandi
+    implementation("com.google.firebase:firebase-auth-ktx")
+
+    // [PENTING] Storage untuk simpan file foto profil pelanggan
+    implementation("com.google.firebase:firebase-storage-ktx")
+
+    // =======================================================
+    // JETPACK COMPOSE & CORE
+    // =======================================================
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
 
-    // ROOM (Bisa tetap ada jika ingin pakai Offline-First)
+    // =======================================================
+    // LIBRARY TAMBAHAN (UI & IMAGE)
+    // =======================================================
+    // [WAJIB] Coil untuk menampilkan foto profil dari URL Firebase Storage
+    implementation("io.coil-kt:coil-compose:2.4.0")
+
+    // Room (Opsional: Tetap ada jika ingin pengembangan offline di masa depan)
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("io.coil-kt:coil-compose:2.4.0")
 }

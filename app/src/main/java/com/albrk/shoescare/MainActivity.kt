@@ -9,52 +9,62 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import com.albrk.shoescare.data.local.database.ShoeDatabase
-import com.albrk.shoescare.data.repository.ShoeRepository
 import com.albrk.shoescare.ui.theme.ALBRKSHOESCARETheme
 import com.albrk.shoescare.ui.screen.auth.LoginScreen
+import com.albrk.shoescare.ui.MyApp
 import com.albrk.shoescare.viewmodel.ShoeViewModel
 import com.albrk.shoescare.viewmodel.ShoeViewModelFactory
 
-// Import dari folder staff
-import com.albrk.shoescare.ui.screen.staff.MainScreen
-
+/**
+ * MAIN ACTIVITY (ENTRY POINT - PELANGGAN)
+ * Fungsi: Sebagai pondasi utama tempat Jetpack Compose menggambar seluruh antarmuka aplikasi.
+ * Menangani pengecekan sesi login dan inisialisasi ViewModel utama.
+ */
 class MainActivity : ComponentActivity() {
 
-    /**
-     * ✅ PERBAIKAN UTAMA: Menggunakan inisialisasi lazy yang lebih aman.
-     * Pastikan ShoeRepository menerima dao dari database yang sudah di-init.
-     */
+    // =======================================================
+    // 1. INISIALISASI VIEWMODEL (CLOUD-NATIVE)
+    // =======================================================
+    // Menggunakan Factory untuk membuat instance ViewModel yang terhubung ke Firebase.
     private val viewModel: ShoeViewModel by viewModels {
-        val database = ShoeDatabase.getDatabase(applicationContext)
-        val repository = ShoeRepository(database.shoeDao())
-        ShoeViewModelFactory(repository)
+        ShoeViewModelFactory()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
+            // Membungkus aplikasi dengan tema warna sistem ALBRK
             ALBRKSHOESCARETheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // State untuk melacak sesi login
+                    // =======================================================
+                    // 2. MANAJEMEN SESI PENGGUNA (REACTIVE STATE)
+                    // =======================================================
+                    // State ini menyimpan UID (User ID) unik dari Firebase Authentication.
+                    // Jika null, aplikasi menampilkan Login. Jika terisi, masuk ke Dashboard.
                     var loggedInUserId by remember { mutableStateOf<String?>(null) }
 
                     if (loggedInUserId == null) {
-                        // Tampilkan layar login
-                        LoginScreen(onLoginClick = { id ->
-                            loggedInUserId = id
-                        })
+                        // --- HALAMAN LOGIN & REGISTRASI ---
+                        LoginScreen(
+                            onLoginClick = { id ->
+                                // Menyimpan UID saat berhasil masuk/daftar
+                                loggedInUserId = id
+                            }
+                        )
                     } else {
-                        // Tampilkan MainScreen (Dashboard Staf / Tracking Pelanggan)
-                        MainScreen(
-                            userId = loggedInUserId!!,
+                        // --- HALAMAN UTAMA APLIKASI (MY APP) ---
+                        // PERBAIKAN: Sekarang mengirim 'uid' agar ProfileScreen bisa
+                        // menarik data nama & alamat yang benar dari Firebase.
+                        MyApp(
+                            uid = loggedInUserId!!,
                             viewModel = viewModel,
                             onLogout = {
-                                loggedInUserId = null // Reset sesi
+                                // Menghapus sesi untuk kembali ke layar Login
+                                loggedInUserId = null
                             }
                         )
                     }

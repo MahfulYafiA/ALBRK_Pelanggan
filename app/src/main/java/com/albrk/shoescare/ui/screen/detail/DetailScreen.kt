@@ -14,8 +14,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,26 +23,44 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import java.util.Locale
 
+/**
+ * SCREEN: DETAIL
+ * Fungsi: Menampilkan informasi lengkap mengenai layanan yang dipilih pelanggan.
+ * Memiliki fitur kembali (Back) dan aksi tambahan (seperti Hapus dari pilihan/keranjang).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     name: String,
     price: Int,
-    // Dua fungsi ini bertugas sebagai jembatan aksi ke layar utama/ViewModel
-    navigateBack: () -> Unit,
-    onDeleteClick: () -> Unit
+    navigateBack: () -> Unit, // Callback untuk tombol panah kembali (Back)
+    onDeleteClick: () -> Unit // Callback untuk tombol hapus/batal di bawah
 ) {
+    // =======================================================
+    // 1. OPTIMASI FORMAT MATA UANG
+    // =======================================================
+    // Menggunakan 'remember' agar objek NumberFormat tidak membebani RAM
+    // dengan melakukan kalkulasi berulang kali saat layar digambar ulang (Recomposition).
+    val formattedPrice = remember(price) {
+        NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+            maximumFractionDigits = 0
+        }.format(price)
+    }
+
+    // Scaffold menyediakan struktur kerangka dasar UI Material Design (TopBar, BottomBar, Content)
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Detail Layanan") },
+                title = { Text("Detail Layanan", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
+                    // Tombol Panah Kiri (Back)
                     IconButton(onClick = navigateBack) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali")
                     }
@@ -50,6 +68,7 @@ fun DetailScreen(
             )
         }
     ) { innerPadding ->
+        // Column Utama pembungkus seluruh konten
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -57,9 +76,12 @@ fun DetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Kartu untuk membungkus informasi detail agar terlihat rapi
+            // =======================================================
+            // 2. KARTU INFORMASI (CARD)
+            // =======================================================
             Card(
                 modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(4.dp), // Sedikit bayangan agar menonjol
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
@@ -67,10 +89,10 @@ fun DetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(20.dp), // Padding di dalam kartu diperbesar agar lebih lega
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Label dan Isi untuk Nama Layanan
+                    // --- NAMA LAYANAN ---
                     Text(
                         text = "Nama Layanan",
                         style = MaterialTheme.typography.labelMedium,
@@ -82,40 +104,45 @@ fun DetailScreen(
                         fontWeight = FontWeight.Bold
                     )
 
-                    // Garis pemisah tipis
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    // Garis pemisah horizontal (Standar Material 3)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                    // Label dan Isi untuk Harga
+                    // --- HARGA LAYANAN ---
                     Text(
                         text = "Harga",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
-
-                    // Format angka ke Rupiah
-                    val formattedPrice = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
-                        maximumFractionDigits = 0
-                    }.format(price)
-
                     Text(
                         text = formattedPrice,
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold, // Harga ditebalkan
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Mendorong tombol hapus ke bagian paling bawah layar
+            // =======================================================
+            // 3. PENGATUR TATA LETAK FLEKSIBEL (SPACER WEIGHT)
+            // =======================================================
+            // Memberikan weight(1f) pada Spacer yang kosong berfungsi seperti pegas.
+            // Ia akan mendorong komponen di bawahnya (Tombol Hapus) hingga mentok ke bagian paling bawah layar.
             Spacer(modifier = Modifier.weight(1f))
 
-            // Tombol Hapus (berwarna merah dari tema error)
+            // =======================================================
+            // 4. TOMBOL AKSI (HAPUS / BATAL)
+            // =======================================================
             Button(
                 onClick = onDeleteClick,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                // Menggunakan skema warna error (biasanya merah) sebagai penanda aksi destruktif
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
                 Icon(imageVector = Icons.Default.Delete, contentDescription = "Hapus")
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Hapus Layanan")
+                Text("Hapus dari Pilihan", fontWeight = FontWeight.Bold)
             }
         }
     }

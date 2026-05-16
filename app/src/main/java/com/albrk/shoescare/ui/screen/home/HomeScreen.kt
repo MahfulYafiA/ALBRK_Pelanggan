@@ -33,33 +33,55 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.albrk.shoescare.data.local.entity.Shoe
+import com.albrk.shoescare.data.firebase.model.Shoe
 import com.albrk.shoescare.ui.component.CheckoutDialog
 import com.albrk.shoescare.ui.component.ShoeItem
 import java.text.NumberFormat
 import java.util.Locale
 
+/**
+ * SCREEN: HOME (PELANGGAN)
+ * Fungsi: Menampilkan etalase layanan yang tersedia, keranjang belanja dinamis,
+ * dan memicu proses checkout ke Firebase.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    shoeList: List<Shoe>,
-    cartCount: Int,
-    totalPrice: Int,
-    onAddClick: () -> Unit,
-    onItemClick: (Shoe) -> Unit,
-    onCheckoutClick: (String) -> Unit // Mengirim String (nama pelanggan)
+    shoeList: List<Shoe>,           // Data: Daftar layanan/sepatu yang ditampilkan
+    cartCount: Int,                 // Data: Jumlah barang di dalam keranjang
+    totalPrice: Int,                // Data: Total harga keranjang
+    onAddClick: () -> Unit,         // Aksi: Saat tombol tambah (FAB) diklik
+    onItemClick: (Shoe) -> Unit,    // Aksi: Saat satu kartu layanan diklik
+    onCheckoutClick: (String) -> Unit // Aksi: Saat proses checkout selesai (mengirim nama pelanggan)
 ) {
-    // State untuk mengontrol kemunculan dialog checkout
+    // =======================================================
+    // 1. STATE MANAGEMENT LOKAL
+    // =======================================================
+    // Mengontrol apakah pop-up konfirmasi pembayaran (CheckoutDialog) harus muncul atau tidak.
     var showDialog by remember { mutableStateOf(false) }
 
-    // Menampilkan Dialog jika state showDialog bernilai true
+    // =======================================================
+    // 2. OPTIMASI FORMAT MATA UANG
+    // =======================================================
+    // Menggunakan 'remember' agar format Rupiah tidak dikalkulasi ulang setiap detik
+    // saat user men-scroll layar. Hanya dihitung ulang JIKA totalPrice berubah.
+    val formattedTotal = remember(totalPrice) {
+        NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+            maximumFractionDigits = 0
+        }.format(totalPrice)
+    }
+
+    // =======================================================
+    // 3. CONDITIONAL RENDERING (DIALOG POP-UP)
+    // =======================================================
+    // Jetpack Compose akan menggambar CheckoutDialog HANYA JIKA showDialog bernilai true.
     if (showDialog) {
         CheckoutDialog(
             totalPrice = totalPrice,
-            onDismiss = { showDialog = false },
+            onDismiss = { showDialog = false }, // Menutup pop-up jika batal
             onConfirm = { customerName ->
-                onCheckoutClick(customerName)
-                showDialog = false
+                onCheckoutClick(customerName) // Mengirim data ke ViewModel untuk di-push ke Firebase
+                showDialog = false // Menutup pop-up setelah sukses
             }
         )
     }
@@ -70,7 +92,8 @@ fun HomeScreen(
                 title = {
                     Text(
                         text = "ALBRK SHOESCARE",
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -80,17 +103,23 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
+            // Tombol Melayang untuk aksi utama (bisa diarahkan ke Lacak Pesanan / Tambah Custom)
             FloatingActionButton(
                 onClick = onAddClick,
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Tambah Layanan Baru"
+                    contentDescription = "Menu Tambahan"
                 )
             }
         },
         bottomBar = {
+            // =======================================================
+            // 4. KERANJANG BELANJA DINAMIS (DYNAMIC BOTTOM BAR)
+            // =======================================================
+            // BottomAppBar (Keranjang) HANYA muncul jika ada minimal 1 barang yang dipilih.
+            // Jika keranjang kosong, area ini akan hilang dan layar menjadi lebih luas.
             if (cartCount > 0) {
                 BottomAppBar(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -107,9 +136,6 @@ fun HomeScreen(
                                 text = "$cartCount Layanan Terpilih",
                                 style = MaterialTheme.typography.labelMedium
                             )
-                            val formattedTotal = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
-                                maximumFractionDigits = 0
-                            }.format(totalPrice)
                             Text(
                                 text = formattedTotal,
                                 style = MaterialTheme.typography.titleLarge,
@@ -117,17 +143,21 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
-                        // Tombol Bayar sekarang memicu kemunculan dialog
+                        // Tombol Bayar memicu State showDialog menjadi true
                         Button(onClick = { showDialog = true }) {
                             Icon(Icons.Default.ShoppingCart, contentDescription = null)
-                            Text(modifier = Modifier.padding(start = 8.dp), text = "Bayar")
+                            Text(modifier = Modifier.padding(start = 8.dp), text = "Bayar", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
     ) { innerPadding ->
+        // =======================================================
+        // 5. KONTEN UTAMA (DAFTAR LAYANAN / ETALASE)
+        // =======================================================
         if (shoeList.isEmpty()) {
+            // Tampilan jika data layanan dari Firebase masih kosong / loading
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -135,19 +165,21 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Belum ada daftar layanan.\nSilakan klik tombol + untuk menambah.",
+                    text = "Layanan sedang dimuat atau belum tersedia.",
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
+            // LazyColumn untuk menampilkan data yang banyak tanpa membuat HP lag
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
+                contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp) // Bottom padding agar tidak tertutup BottomBar
             ) {
-                items(items = shoeList, key = { it.id }) { shoe ->
+                // PERBAIKAN: Menghapus key = { it.id } untuk mencegah crash jika ID duplikat dari default data class
+                items(items = shoeList) { shoe ->
                     ShoeItem(
                         shoe = shoe,
                         onItemClick = onItemClick

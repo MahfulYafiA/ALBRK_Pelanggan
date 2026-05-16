@@ -1,17 +1,20 @@
 package com.albrk.shoescare.ui.screen.auth
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape // TAMBAHAN: Wajib diimport
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip // TAMBAHAN: Wajib diimport
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale // TAMBAHAN: Wajib diimport
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -23,40 +26,47 @@ import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun LoginScreen(onLoginClick: (String) -> Unit) {
+    // =======================================================
+    // 1. STATE MANAGEMENT (MANAJEMEN STATUS UI)
+    // =======================================================
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) } // Untuk kontrol mata password
+    var confirmPassword by remember { mutableStateOf("") } // Hanya muncul saat mode daftar
+    var passwordVisible by remember { mutableStateOf(false) } // Toggle mata password
+
+    // KUNCI UTAMA: Menentukan apakah layar menampilkan form Login (true) atau form Daftar (false)
+    var isLoginMode by remember { mutableStateOf(true) }
+
     var errorMessage by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) } // Indikator proses loading Firebase
+    val context = LocalContext.current // Untuk menampilkan Toast (pesan pop-up)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // Gunakan warna latar belakang abu-abu terang (silver)
-            .background(Color(0xFFEEEEEE))
+            .background(Color(0xFFEEEEEE)) // Warna latar belakang abu-abu terang
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center // Memposisikan konten pas di tengah layar
     ) {
-        // ==========================================
-        // HEADER: FOTO BULAT BUKAN KOTAK HITAM
-        // ==========================================
-        // UPDATE: Kita bungkus gambar kotak tadi dalam Surface bulet berbayang biar premium boss
+        // =======================================================
+        // 2. HEADER: LOGO DAN JUDUL APLIKASI
+        // =======================================================
         Surface(
             modifier = Modifier
-                .size(130.dp) // Ukuran lingkaran harus sama lebar x tinggi
-                .clip(CircleShape), // Wajib clip biar Surface-nya bulet
-            color = Color.White, // Latar belakang putih bersih
-            shadowElevation = 8.dp // Efek bayangan biar premium boss
+                .size(130.dp)
+                .clip(CircleShape), // Memotong bingkai menjadi lingkaran sempurna
+            color = Color.White,
+            shadowElevation = 8.dp // Memberikan efek bayangan 3D
         ) {
             Image(
                 painter = painterResource(id = R.drawable.albrk),
                 contentDescription = "ALBRK Logo",
-                contentScale = ContentScale.Crop, // Wajib biar logo didalemnya full ga lonjong
+                contentScale = ContentScale.Crop, // Memastikan gambar mengisi lingkaran tanpa gepeng
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(8.dp) // Padding dikit biar logonya ga mentok border
-                    .clip(CircleShape) // Clip image-nya juga
+                    .padding(8.dp)
+                    .clip(CircleShape)
             )
         }
 
@@ -69,17 +79,17 @@ fun LoginScreen(onLoginClick: (String) -> Unit) {
             color = Color.Black
         )
 
+        // Teks sub-judul yang berubah dinamis tergantung mode (Login / Daftar)
         Text(
-            text = "Premium Services Quality",
+            text = if (isLoginMode) "Silakan masuk ke akun Anda" else "Daftar akun baru sekarang",
             fontSize = 16.sp,
             color = Color.DarkGray,
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        // ==========================================
-        // INPUT FIELDS DENGAN SUDUT TUMPUL (Matches image)
-        // ==========================================
-        // KOLOM INPUT EMAIL
+        // =======================================================
+        // 3. INPUT FIELDS (KOLOM ISIAN)
+        // =======================================================
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -88,11 +98,9 @@ fun LoginScreen(onLoginClick: (String) -> Unit) {
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
             singleLine = true,
-            // Menambahkan leading icon biar mirip design tumpu-nya
-            shape = RoundedCornerShape(12.dp) // Sudut tumpul sesuai gambar
+            shape = RoundedCornerShape(12.dp)
         )
 
-        // KOLOM INPUT PASSWORD
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -101,6 +109,7 @@ fun LoginScreen(onLoginClick: (String) -> Unit) {
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
             singleLine = true,
+            // Fitur untuk melihat atau menyembunyikan teks sandi
             trailingIcon = {
                 TextButton(onClick = { passwordVisible = !passwordVisible }) {
                     Text(
@@ -111,57 +120,135 @@ fun LoginScreen(onLoginClick: (String) -> Unit) {
                 }
             },
             shape = RoundedCornerShape(12.dp),
+            // Mengubah teks menjadi titik-titik jika passwordVisible bernilai false
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation()
         )
 
+        // --- FORM KONFIRMASI PASSWORD (CONDITIONAL RENDERING) ---
+        // Hanya digambar oleh Jetpack Compose ke layar jika isLoginMode bernilai false
+        if (!isLoginMode) {
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                label = { Text("Konfirmasi Password", color = Color.Gray) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                visualTransformation = PasswordVisualTransformation()
+            )
+        }
+
+        // Area untuk menampilkan pesan error berwarna merah jika ada validasi yang gagal
         if (errorMessage.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = errorMessage, color = Color.Red, fontSize = 14.sp)
         }
 
-        // ==========================================
-        // TOMBOL LOGIN HITAM SOLID (Matches image "LOGIN")
-        // ==========================================
+        // =======================================================
+        // 4. TOMBOL UTAMA & LOGIKA FIREBASE AUTH
+        // =======================================================
         Button(
             onClick = {
+                // Validasi dasar (Front-end Validation)
                 if (email.isBlank() || password.isBlank()) {
                     errorMessage = "Email dan Password tidak boleh kosong!"
                     return@Button
                 }
 
-                isLoading = true
+                isLoading = true // Memunculkan animasi muter (loading)
                 errorMessage = ""
 
-                FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        isLoading = false
-                        if (task.isSuccessful) {
-                            if (email.contains("staf")) {
-                                onLoginClick("staff")
+                val auth = FirebaseAuth.getInstance()
+
+                if (isLoginMode) {
+                    // --- LOGIKA LOGIN (SIGN IN) ---
+                    auth.signInWithEmailAndPassword(email, password)
+                        .addOnCompleteListener { task ->
+                            isLoading = false
+                            if (task.isSuccessful) {
+                                Toast.makeText(context, "Login Berhasil", Toast.LENGTH_SHORT).show()
+                                // Lanjut ke halaman berikutnya dengan membawa User ID (UID)
+                                onLoginClick(auth.currentUser?.uid ?: "pelanggan")
                             } else {
-                                onLoginClick("pelanggan")
+                                errorMessage = "Login Gagal: Cek email dan password Anda."
                             }
-                        } else {
-                            errorMessage = "Login Gagal: Cek kembali email dan password Anda."
                         }
+                } else {
+                    // --- LOGIKA DAFTAR (SIGN UP) ---
+                    if (password != confirmPassword) {
+                        isLoading = false
+                        errorMessage = "Password tidak cocok!"
+                        return@Button
                     }
+                    if (password.length < 6) {
+                        isLoading = false
+                        errorMessage = "Password minimal 6 karakter!"
+                        return@Button
+                    }
+
+                    auth.createUserWithEmailAndPassword(email, password)
+                        .addOnCompleteListener { task ->
+                            isLoading = false
+                            if (task.isSuccessful) {
+                                Toast.makeText(context, "Akun berhasil dibuat!", Toast.LENGTH_SHORT).show()
+                                // Otomatis mengarahkan user masuk ke dalam aplikasi setelah sukses daftar
+                                onLoginClick(auth.currentUser?.uid ?: "pelanggan")
+                            } else {
+                                errorMessage = "Pendaftaran gagal: ${task.exception?.message}"
+                            }
+                        }
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 24.dp)
                 .height(50.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Black, // Latar belakang tombol hitam solid
+                containerColor = Color.Black,
                 contentColor = Color.White
             ),
             shape = RoundedCornerShape(12.dp),
-            enabled = !isLoading
+            enabled = !isLoading // Mematikan interaksi tombol saat sistem sedang memuat (loading)
         ) {
             if (isLoading) {
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
             } else {
-                Text("LOGIN", fontSize = 18.sp, fontWeight = FontWeight.Bold) // Gunakan LOGIN huruf kapital sesuai gambar boss
+                Text(
+                    text = if (isLoginMode) "LOGIN" else "DAFTAR SEKARANG",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
+        }
+
+        // =======================================================
+        // 5. TEKS PINDAH MODE (TOGGLE)
+        // =======================================================
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isLoginMode) "Belum punya akun? " else "Sudah punya akun? ",
+                color = Color.Gray,
+                fontSize = 14.sp
+            )
+            Text(
+                text = if (isLoginMode) "Daftar di sini" else "Login di sini",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                modifier = Modifier.clickable {
+                    // KUNCI PERUBAHAN UI:
+                    // Mengubah nilai isLoginMode akan memaksa Jetpack Compose menggambar ulang seluruh tampilan ini
+                    isLoginMode = !isLoginMode
+                    errorMessage = "" // Mereset pesan error agar tampilan bersih saat pindah mode
+                }
+            )
         }
     }
 }

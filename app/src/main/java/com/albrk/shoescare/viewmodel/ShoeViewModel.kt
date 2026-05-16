@@ -1,161 +1,135 @@
 package com.albrk.shoescare.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import com.albrk.shoescare.data.local.entity.ServiceItem // Tambahan import
-import com.albrk.shoescare.data.local.entity.Shoe
-import com.albrk.shoescare.data.local.entity.Transaction
-import com.albrk.shoescare.data.repository.ShoeRepository
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
+import com.albrk.shoescare.data.firebase.model.ServiceItem
+import com.albrk.shoescare.data.firebase.model.Transaction
+import com.google.firebase.database.*
+import com.google.firebase.storage.FirebaseStorage // IMPORT WAJIB
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
 
-class ShoeViewModel(private val repository: ShoeRepository) : ViewModel() {
+class ShoeViewModel : ViewModel() {
 
+    // 1. Inisialisasi Firebase
     private val db = FirebaseDatabase.getInstance("https://albrk-shoescare-default-rtdb.asia-southeast1.firebasedatabase.app")
-    private val shoesRef = db.getReference("shoes")
     private val transactionsRef = db.getReference("transactions")
+    private val masterServicesRef = db.getReference("master_services")
+    private val usersRef = db.getReference("users")
 
-    private val _allShoes = MutableStateFlow<List<Shoe>>(emptyList())
-    val allShoes: StateFlow<List<Shoe>> = _allShoes
+    // Inisialisasi Storage yang benar
+    private val storage = FirebaseStorage.getInstance().reference
 
+    // 2. State Management
     private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
     val allTransactions: StateFlow<List<Transaction>> = _allTransactions
 
-    // State untuk Keranjang Belanja (Multi-item)
-    private val _cartItems = MutableStateFlow<List<Shoe>>(emptyList())
-    val cartItems: StateFlow<List<Shoe>> = _cartItems
-
-    private val _cartCustomerName = MutableStateFlow("")
-    val cartCustomerName: StateFlow<String> = _cartCustomerName
-
-    // --- STATE UNTUK MENU LAYANAN DINAMIS (ROOM) ---
     private val _allServices = MutableStateFlow<List<ServiceItem>>(emptyList())
     val allServices: StateFlow<List<ServiceItem>> = _allServices
 
-    fun updateCartCustomerName(name: String) {
-        _cartCustomerName.value = name
-    }
+    val activeServices = allServices.map { list -> list.filter { it.isActive } }
 
     init {
-        // Ambil data MENU LAYANAN dari Room Database Lokal
-        viewModelScope.launch {
-            repository.allServiceItems.collect { services ->
-                _allServices.value = services
-            }
-        }
+        fetchServices()
+        fetchTransactions()
+    }
 
-        // Listener Firebase untuk Katalog Layanan (Lama)
-        shoesRef.addValueEventListener(object : ValueEventListener {
+    private fun fetchServices() {
+        masterServicesRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val list = mutableListOf<Shoe>()
+                val list = mutableListOf<ServiceItem>()
                 for (data in snapshot.children) {
-                    val shoe = data.getValue(Shoe::class.java)
-                    if (shoe != null) list.add(shoe)
+                    val price = (data.child("price").value as? Long)?.toInt() ?: 0
+                    list.add(ServiceItem(
+                        id = data.key ?: "",
+                        name = data.child("name").getValue(String::class.java) ?: "",
+                        price = price,
+                        imageUri = data.child("imageUri").getValue(String::class.java),
+                        isActive = data.child("isActive").getValue(Boolean::class.java) ?: true
+                    ))
                 }
-                _allShoes.value = list
+                _allServices.value = list
             }
             override fun onCancelled(error: DatabaseError) {}
         })
+    }
 
-        // Listener Firebase untuk Riwayat Transaksi (Realtime)
+    private fun fetchTransactions() {
         transactionsRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val list = mutableListOf<Transaction>()
                 for (data in snapshot.children) {
-                    val transaction = data.getValue(Transaction::class.java)
-                    if (transaction != null) {
-                        // Tempelkan key Firebase ke objek Transaction
-                        val trxWithKey = transaction.copy(firebaseKey = data.key ?: "")
-                        list.add(trxWithKey)
+                    data.getValue(Transaction::class.java)?.let {
+                        list.add(it.copy(firebaseKey = data.key ?: ""))
                     }
                 }
-                // Urutkan berdasarkan tanggal terbaru
                 _allTransactions.value = list.sortedByDescending { it.date }
             }
             override fun onCancelled(error: DatabaseError) {}
         })
     }
 
-    // --- FUNGSI KELOLA LAYANAN (ROOM) ---
-    fun addService(service: ServiceItem) {
-        viewModelScope.launch {
-            repository.insertServiceItem(service)
-        }
+    // --- MANAJEMEN PROFIL ---
+
+    fun getUserProfile(uid: String, onResult: (String, String, String, String) -> Unit) {
+        usersRef.child(uid).addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val name = snapshot.child("name").getValue(String::class.java) ?: ""
+                val phone = snapshot.child("phone").getValue(String::class.java) ?: ""
+                val address = snapshot.child("address").getValue(String::class.java) ?: ""
+                val photoUrl = snapshot.child("photoUrl").getValue(String::class.java) ?: ""
+                onResult(name, phone, address, photoUrl)
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        })
     }
 
-    fun deleteService(service: ServiceItem) {
-        viewModelScope.launch {
-            repository.deleteServiceItem(service)
-        }
-    }
-
-    // --- FUNGSI KERANJANG & CHECKOUT ---
-
-    // Fungsi menambah item ke keranjang sementara
-    fun addToCart(shoeBrand: String, serviceName: String, price: Int) {
-        val detailSepatu = "$shoeBrand ($serviceName)"
-        _cartItems.value = _cartItems.value + Shoe(name = detailSepatu, price = price)
-    }
-
-    // Fungsi menghapus item dari keranjang
-    fun removeFromCart(shoe: Shoe) {
-        _cartItems.value = _cartItems.value.filter { it != shoe }
-        if (_cartItems.value.isEmpty()) {
-            _cartCustomerName.value = ""
-        }
-    }
-
-    fun getTotalPrice(): Int = _cartItems.value.sumOf { it.price }
-
-    // Logika Checkout: Menggabungkan semua item keranjang menjadi 1 transaksi
-    fun checkout(customerName: String, onComplete: () -> Unit) {
-        if (_cartItems.value.isNotEmpty()) {
-            val key = transactionsRef.push().key ?: return
-
-            // Gabungkan semua nama layanan menjadi satu string
-            val combinedServices = _cartItems.value.joinToString(", ") { it.name }
-
-            val newTransaction = Transaction(
-                customerName = customerName,
-                serviceNames = combinedServices,
-                totalPrice = getTotalPrice(),
-                date = System.currentTimeMillis(),
-                status = "Diproses",
-                firebaseKey = key
-            )
-
-            transactionsRef.child(key).setValue(newTransaction).addOnSuccessListener {
-                // Reset keranjang setelah berhasil
-                _cartItems.value = emptyList()
-                _cartCustomerName.value = ""
-                onComplete()
+    fun uploadProfileImage(uid: String, uri: Uri, onComplete: (String) -> Unit) {
+        val fileRef = storage.child("profile_images/$uid.jpg")
+        fileRef.putFile(uri).addOnSuccessListener {
+            fileRef.downloadUrl.addOnSuccessListener { downloadUrl ->
+                val url = downloadUrl.toString()
+                usersRef.child(uid).child("photoUrl").setValue(url)
+                onComplete(url)
             }
         }
     }
 
-    fun updateTransactionStatus(firebaseKey: String, newStatus: String) {
-        if (firebaseKey.isNotBlank()) {
-            transactionsRef.child(firebaseKey).child("status").setValue(newStatus)
-        }
+    fun saveUserProfile(uid: String, name: String, phone: String, address: String, photoUrl: String, onSuccess: () -> Unit) {
+        val userMap = mapOf(
+            "name" to name,
+            "phone" to phone,
+            "address" to address,
+            "photoUrl" to photoUrl
+        )
+        usersRef.child(uid).setValue(userMap).addOnSuccessListener { onSuccess() }
     }
 
-    fun deleteShoe(shoe: Shoe) {
-        // Logic delete layanan jika diperlukan
+    // --- TRANSAKSI ---
+    fun submitBooking(customerName: String, customerPhone: String, address: String, serviceNames: String, totalPrice: Int) {
+        val key = transactionsRef.push().key ?: return
+        val newTransaction = Transaction(
+            customerName = customerName,
+            customerPhone = customerPhone,
+            address = address,
+            serviceNames = serviceNames,
+            totalPrice = totalPrice,
+            date = System.currentTimeMillis(),
+            status = "Diajukan",
+            firebaseKey = key
+        )
+        transactionsRef.child(key).setValue(newTransaction)
     }
 }
 
-// Factory untuk inisialisasi di MainActivity
-class ShoeViewModelFactory(private val repository: ShoeRepository) : ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+// Perbaikan Factory
+class ShoeViewModelFactory : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ShoeViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return ShoeViewModel(repository) as T
+            return ShoeViewModel() as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
