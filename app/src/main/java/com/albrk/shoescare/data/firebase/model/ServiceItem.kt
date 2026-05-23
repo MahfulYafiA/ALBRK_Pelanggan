@@ -25,7 +25,7 @@ data class ServiceItem(
 
     // KUNCI SINKRONISASI STAF & PELANGGAN
     // Variabel ini untuk membaca status layanan dari Firebase.
-    // Default true, tapi jika dimatikan oleh staf, nilainya jadi false.
+    // Default true, tapi jika dimatikan oleh staf, nilainya jadi false
     val isActive: Boolean = true
 
 
