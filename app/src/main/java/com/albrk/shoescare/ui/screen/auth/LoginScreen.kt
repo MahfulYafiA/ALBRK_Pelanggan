@@ -246,7 +246,7 @@ fun LoginScreen(onLoginClick: (String) -> Unit) {
                     // KUNCI PERUBAHAN UI:
                     // Mengubah nilai isLoginMode akan memaksa Jetpack Compose menggambar ulang seluruh tampilan ini
                     isLoginMode = !isLoginMode
-                    errorMessage = "" // Mereset pesan error agar tampilan bersih saat pindah mode
+                    errorMessage = ""
                 }
             )
         }
