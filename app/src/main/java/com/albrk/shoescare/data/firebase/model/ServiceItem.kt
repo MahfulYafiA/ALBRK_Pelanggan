@@ -23,8 +23,5 @@ data class ServiceItem(
     // Nama file gambar yang dikirim dari staf untuk dicocokkan dengan drawable pelanggan
     val imageUri: String? = null,
 
-    // KUNCI SINKRONISASI STAF & PELANGGAN
-    // Variabel ini untuk membaca status layanan dari Firebase.
-    // Default true, tapi jika dimatikan oleh staf, nilainya jadi false.
-    val isActive: Boolean = true
+
 )
