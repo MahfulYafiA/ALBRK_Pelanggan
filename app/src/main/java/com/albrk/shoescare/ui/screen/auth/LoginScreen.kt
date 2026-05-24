@@ -44,7 +44,7 @@ fun LoginScreen(onLoginClick: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFEEEEEE)) // Warna latar belakang abu-abu terang
+            .background(MaterialTheme.colorScheme.background)// Menggunakan warna background otomatis dari Theme.kt
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center // Memposisikan konten pas di tengah layar
@@ -76,14 +76,14 @@ fun LoginScreen(onLoginClick: (String) -> Unit) {
             text = "ALBRK SHOESCARE",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         // Teks sub-judul yang berubah dinamis tergantung mode (Login / Daftar)
         Text(
             text = if (isLoginMode) "Silakan masuk ke akun Anda" else "Daftar akun baru sekarang",
             fontSize = 16.sp,
-            color = Color.DarkGray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
