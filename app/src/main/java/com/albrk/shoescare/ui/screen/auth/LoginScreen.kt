@@ -133,6 +133,7 @@ fun LoginScreen(onLoginClick: (String) -> Unit) {
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
                 label = { Text("Konfirmasi Password", color = Color.Gray) },
+                textStyle = LocalTextStyle.current.copy(color = Color.Black),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
