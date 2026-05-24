@@ -162,7 +162,7 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- FORM KEAMANAN (EMAIL & SANDI) ---
+            // --- FORM KEAMANAN AKUN (EMAIL & SANDI) ---
             Text("Akun & Keamanan", fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(8.dp))
 
