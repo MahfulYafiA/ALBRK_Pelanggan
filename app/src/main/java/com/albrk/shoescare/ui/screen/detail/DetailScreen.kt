@@ -2,16 +2,11 @@ package com.albrk.shoescare.ui.screen.detail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,35 +27,30 @@ import java.util.Locale
 
 /**
  * SCREEN: DETAIL
- * Fungsi: Menampilkan informasi lengkap mengenai layanan yang dipilih pelanggan.
- * Memiliki fitur kembali (Back) dan aksi tambahan (seperti Hapus dari pilihan/keranjang).
+ * Fungsi: Murni sebagai brosur/katalog informasi layanan.
+ * Fitur tambah/hapus keranjang SUDAH DIHAPUS.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     name: String,
     price: Int,
-    navigateBack: () -> Unit, // Callback untuk tombol panah kembali (Back)
-    onDeleteClick: () -> Unit // Callback untuk tombol hapus/batal di bawah
+    navigateBack: () -> Unit // Sekarang HANYA butuh parameter untuk kembali
 ) {
     // =======================================================
     // 1. OPTIMASI FORMAT MATA UANG
     // =======================================================
-    // Menggunakan 'remember' agar objek NumberFormat tidak membebani RAM
-    // dengan melakukan kalkulasi berulang kali saat layar digambar ulang (Recomposition).
     val formattedPrice = remember(price) {
         NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
             maximumFractionDigits = 0
         }.format(price)
     }
 
-    // Scaffold menyediakan struktur kerangka dasar UI Material Design (TopBar, BottomBar, Content)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Detail Layanan", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    // Tombol Panah Kiri (Back)
                     IconButton(onClick = navigateBack) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali")
                     }
@@ -68,7 +58,6 @@ fun DetailScreen(
             )
         }
     ) { innerPadding ->
-        // Column Utama pembungkus seluruh konten
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -81,7 +70,7 @@ fun DetailScreen(
             // =======================================================
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp), // Sedikit bayangan agar menonjol
+                elevation = CardDefaults.cardElevation(4.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
@@ -89,7 +78,7 @@ fun DetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp), // Padding di dalam kartu diperbesar agar lebih lega
+                        .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // --- NAMA LAYANAN ---
@@ -104,7 +93,6 @@ fun DetailScreen(
                         fontWeight = FontWeight.Bold
                     )
 
-                    // Garis pemisah horizontal (Standar Material 3)
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                     // --- HARGA LAYANAN ---
@@ -116,34 +104,19 @@ fun DetailScreen(
                     Text(
                         text = formattedPrice,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold, // Harga ditebalkan
+                        fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // =======================================================
-            // 3. PENGATUR TATA LETAK FLEKSIBEL (SPACER WEIGHT)
-            // =======================================================
-            // Memberikan weight(1f) pada Spacer yang kosong berfungsi seperti pegas.
-            // Ia akan mendorong komponen di bawahnya (Tombol Hapus) hingga mentok ke bagian paling bawah layar.
-            Spacer(modifier = Modifier.weight(1f))
-
-            // =======================================================
-            // 4. TOMBOL AKSI (HAPUS / BATAL)
-            // =======================================================
-            Button(
-                onClick = onDeleteClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                // Menggunakan skema warna error (biasanya merah) sebagai penanda aksi destruktif
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) {
-                Icon(imageVector = Icons.Default.Delete, contentDescription = "Hapus")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Hapus dari Pilihan", fontWeight = FontWeight.Bold)
-            }
+            // Teks Informasi Tambahan (Opsional, agar layar bawah tidak kosong melompong)
+            Text(
+                text = "Informasi: Pemesanan layanan ini saat ini hanya dapat dilakukan langsung di toko atau melalui kasir kami.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(top = 16.dp)
+            )
         }
     }
 }
